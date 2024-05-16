@@ -19,6 +19,7 @@ set(SRC_FILES ${PROJECT_SOURCE_DIR}/EncodePipeline.cpp
 	      ${PROJECT_SOURCE_DIR}/alvr_server/IDRScheduler.cpp
 	      ${PROJECT_SOURCE_DIR}/alvr_server/Logger.cpp
 	      ${PROJECT_SOURCE_DIR}/alvr_server/Settings.cpp
+	      ${PROJECT_SOURCE_DIR}/alvr_server/NalParsing.cpp
               )
 
 include_directories(${PROJECT_SOURCE_DIR})
@@ -36,6 +37,9 @@ pkg_check_modules(LIBAV REQUIRED IMPORTED_TARGET
     libavutil
 )
 
+add_library(libalvr STATIC IMPORTED)
+set_target_properties(libalvr PROPERTIES IMPORTED_LOCATION /home/duck/devel/alvr_intact/target/debug/libalvr_server.so)
+
 # Make sure you link your targets with this command. It can also link libraries and
 # even flags, so linking a target that does not exist will not give a configure-time error.
-target_link_libraries(AlvrRender PRIVATE PkgConfig::LIBAV)
+target_link_libraries(AlvrRender PRIVATE PkgConfig::LIBAV libalvr)

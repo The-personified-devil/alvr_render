@@ -295,7 +295,7 @@ RgbToYuv420::RgbToYuv420(Renderer *render, VkImage image,
     : FormatConverter(render) {
 
 	// TODO: Unfuck (somehow)
-    std::ifstream t("/home/duck/devel/alvr_render/src/shader/quad.comp.spv", std::ios::binary);
+    std::ifstream t("/home/duck/devel/alvr_render/src/shader/rgbtoyuv420.comp.spv", std::ios::binary);
     t.seekg(0, std::ios::end);
     auto len = t.tellg();
     t.seekg(0, std::ios::beg);

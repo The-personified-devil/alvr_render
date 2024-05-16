@@ -24,6 +24,8 @@
 #include "ffmpeg_helper.h"
 #include "interface.h"
 
+#include "alvr_binding.h"
+
 extern "C" {
 #include "monado_interface.h"
 #include <libavutil/avutil.h>
@@ -32,6 +34,10 @@ extern "C" {
 extern pthread_mutex_t *queue_mutex;
 
 extern "C" struct Proxy *rendr_create_encoder(struct AlvrVkInfo *info) {
+  alvr_initialize_logging();
+  alvr_initialize(nullptr);
+  alvr_start_connection();
+
   Settings::Instance().Load();
   queue_mutex = info->queue_mutex;
   return (Proxy *)new CEncoder(info->instance, info->physDev, info->device,
@@ -108,13 +114,10 @@ void CEncoder::InitImages() {
   image_create_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
   renderCtx.emplace(vk_ctx, image_create_info);
-
-  // TODO: Get rid of this lmao
-  g_encoder = (void *)this;
-
-  // TODO: This shouldn't even exist, no?
-  // DriverReadyIdle(true);
 }
+
+void ParseFrameNals(
+    int codec, unsigned char *buf, int len, unsigned long long targetTimestampNs, bool isIdr);
 
 void CEncoder::Present(uint64_t frame, uint64_t semaphore_value,
                        uint32_t img_idx) {
@@ -144,10 +147,9 @@ void CEncoder::Present(uint64_t frame, uint64_t semaphore_value,
     return;
   }
 
-  // TODO: Actually hand over info to alvr (-> sync with alvr startup)
-
-  // ParseFrameNals(ctx.encode_pipeline->GetCodec(), packet.data, packet.size,
-  //                packet.pts, packet.isIDR);
+  ParseFrameNals(ctx.encode_pipeline->GetCodec(), packet.data, packet.size,
+                 packet.pts, packet.isIDR);
+  usleep(20000);
 }
 
 void CEncoder::OnStreamStart() { m_scheduler.OnStreamStart(); }
