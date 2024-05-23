@@ -2,6 +2,7 @@
 
 #include "Renderer.h"
 
+// Basically a glorified hack for software encoding
 class FormatConverter
 {
 public:

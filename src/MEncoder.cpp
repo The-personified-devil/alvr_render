@@ -31,8 +31,6 @@ extern "C" {
 #include <libavutil/avutil.h>
 }
 
-extern pthread_mutex_t *queue_mutex;
-
 extern "C" struct Proxy *rendr_create_encoder(struct AlvrVkInfo *info) {
   alvr_initialize_logging();
   alvr_initialize(nullptr);
@@ -59,14 +57,6 @@ CEncoder::CEncoder(VkInstance instance, VkPhysicalDevice physDev, VkDevice dev,
 
 CEncoder::~CEncoder() {}
 
-pthread_mutex_t render_mutex;
-pthread_mutex_t double_mutex;
-
-uint64_t tl_val;
-uint32_t img_idx;
-
-void *g_encoder;
-
 namespace {
 
 void av_logfn(void *, int level, const char *data, va_list va) {
@@ -88,13 +78,10 @@ void av_logfn(void *, int level, const char *data, va_list va) {
 }
 
 } // namespace
-//
 
 void CEncoder::InitImages() {
   // TODO: Goofy when using software encoder
   av_log_set_callback(av_logfn);
-
-  // uint32_t num_images = 3;
 
   // TODO: Actually get this info from the config
   VkImageCreateInfo image_create_info{};
@@ -112,6 +99,8 @@ void CEncoder::InitImages() {
                             VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
   image_create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
   image_create_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+  // DONE
 
   renderCtx.emplace(vk_ctx, image_create_info);
 }
@@ -149,7 +138,6 @@ void CEncoder::Present(uint64_t frame, uint64_t semaphore_value,
 
   ParseFrameNals(ctx.encode_pipeline->GetCodec(), packet.data, packet.size,
                  packet.pts, packet.isIDR);
-  usleep(20000);
 }
 
 void CEncoder::OnStreamStart() { m_scheduler.OnStreamStart(); }

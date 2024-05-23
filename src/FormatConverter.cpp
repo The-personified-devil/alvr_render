@@ -200,9 +200,7 @@ void FormatConverter::init(VkImage image, VkImageCreateInfo imageCreateInfo,
 
   m_groupCountX = (imageCreateInfo.extent.width + 7) / 8;
   m_groupCountY = (imageCreateInfo.extent.height + 7) / 8;
-}
 
-void FormatConverter::Convert(uint8_t **data, int *linesize) {
   VkCommandBufferBeginInfo commandBufferBegin = {};
   commandBufferBegin.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
   VK_CHECK(vkBeginCommandBuffer(m_commandBuffer, &commandBufferBegin));
@@ -248,7 +246,9 @@ void FormatConverter::Convert(uint8_t **data, int *linesize) {
                       m_queryPool, 0);
 
   vkEndCommandBuffer(m_commandBuffer);
+}
 
+void FormatConverter::Convert(uint8_t **data, int *linesize) {
   VkPipelineStageFlags waitStage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
 
   VkSubmitInfo submitInfo = {};
@@ -260,6 +260,8 @@ void FormatConverter::Convert(uint8_t **data, int *linesize) {
   submitInfo.pSignalSemaphores = &m_output.semaphore;
   submitInfo.commandBufferCount = 1;
   submitInfo.pCommandBuffers = &m_commandBuffer;
+
+  // TODO: Ensure thread safety
   VK_CHECK(vkQueueSubmit(r->m_queue, 1, &submitInfo, nullptr));
 
   for (size_t i = 0; i < m_images.size(); ++i) {
@@ -268,6 +270,7 @@ void FormatConverter::Convert(uint8_t **data, int *linesize) {
   }
 }
 
+// TODO: why is this a second function lmao
 void FormatConverter::Sync() {
   VkPipelineStageFlags waitStage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
 
