@@ -50,8 +50,6 @@ public:
 
         av_log_set_level(AV_LOG_DEBUG);
 
-        // TODO: Make encode pipeline dynamic
-        
         // TODO: Be able to setup foveated rendering and stuff
 
         // TODO: This should not exist this way

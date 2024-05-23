@@ -23,6 +23,8 @@ set(SRC_FILES
 	      ${PROJECT_SOURCE_DIR}/alvr_server/Logger.cpp
 	      ${PROJECT_SOURCE_DIR}/alvr_server/Settings.cpp
 	      ${PROJECT_SOURCE_DIR}/alvr_server/NalParsing.cpp
+
+              ${PROJECT_SOURCE_DIR}/Renderer.cpp
               ${PROJECT_SOURCE_DIR}/Encoder.cpp
               )
 

@@ -131,7 +131,6 @@ AVFrame *import_frame(AVBufferRef *hw_frames_ref, alvr::DrmImage &drm)
 
 }
 
-// TODO: Also pass in device path and gpu vendor
 alvr::EncodePipelineVAAPI::EncodePipelineVAAPI(alvr::HWContext &vk_ctx, std::string devicePath, alvr::Vendor vendor, VkFrame &input_frame, uint32_t width, uint32_t height)
 {
   /* VAAPI Encoding pipeline

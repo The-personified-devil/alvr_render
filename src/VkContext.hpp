@@ -3,8 +3,11 @@
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
+#include <cstring>
 #include <fcntl.h>
+#include <functional>
 #include <optional>
+#include <stdexcept>
 #include <string_view>
 #include <vector>
 
@@ -21,8 +24,9 @@
 #include <vulkan/vulkan_structs.hpp>
 
 #include "utils.hpp"
-
 #include "monado_interface.h"
+
+#include "alvr_server/Logger.h"
 
 extern "C" {
 #include <libavutil/log.h>
@@ -46,8 +50,6 @@ public:
     vk::PhysicalDevice physDev;
     vk::Device dev;
 
-    vk::Queue queue;
-
     vk::DispatchLoaderDynamic dispatch;
 
     struct Meta {
@@ -65,9 +67,22 @@ public:
 
 private:
     std::optional<SharedMutex> queueMutex;
+    vk::Queue queue;
+
+    void sharedInit() {
+        auto devProps = physDev.getProperties2();
+
+        if (devProps.properties.vendorID == 0x1002)
+            meta.vendor = Vendor::Amd;
+        else if (devProps.properties.vendorID == 0x8086)
+            meta.vendor = Vendor::Intel;
+        else if (devProps.properties.vendorID == 0x10de)
+            meta.vendor = Vendor::Nvidia;
+
+        dispatch = { instance, vkGetInstanceProcAddr };
+    }
 
 public:
-    // TODO: Don't have this as a constructor, we need to pass so much stuff into here
     VkContext(AlvrVkInfo vkInfo)
     {
         instance = vkInfo.instance;
@@ -78,23 +93,12 @@ public:
         meta.queueFamily = vkInfo.queueFamIdx;
         meta.queueIndex = vkInfo.queueIdx;
 
-        // TODO: Initialize the rest of the meta info properly
-        
-        auto devProps = physDev.getProperties2();
+        // TODO: Request the extensions from monado and put them into the meta info
 
-        // TODO: Tbh we also don't need this when we do software encoding
-        if (devProps.properties.vendorID == 0x1002)
-            meta.vendor = Vendor::Amd;
-        else if (devProps.properties.vendorID == 0x8086)
-            meta.vendor = Vendor::Intel;
-        else if (devProps.properties.vendorID == 0x10de)
-            meta.vendor = Vendor::Nvidia;
-
-        dispatch = {instance, vkGetInstanceProcAddr};
+        sharedInit();
     }
 
-    // TODO: Take id and create whole context (Steamvr case)
-    VkContext()
+    VkContext(std::vector<u8> deviceUUID)
     {
         std::vector<std::string_view> wantedInstExts = {
             VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME,
@@ -123,31 +127,41 @@ public:
         instance = vk::createInstance(instanceCI);
         auto physDevs = instance.enumeratePhysicalDevices();
 
-        // TODO: Match to uuid
-        physDev = physDevs[0];
+        for (auto dev : physDevs) {
+            vk::PhysicalDeviceVulkan11Properties props11{};
+            vk::PhysicalDeviceProperties2 props {
+                .pNext = &props11,
+            };
+            dev.getProperties2(&props);
 
-        u32 queueFamilyCount = 0;
-        vkGetPhysicalDeviceQueueFamilyProperties(physDev, &queueFamilyCount, nullptr);
-        std::vector<VkQueueFamilyProperties> queueFamilyProps(queueFamilyCount);
-        vkGetPhysicalDeviceQueueFamilyProperties(physDev, &queueFamilyCount, queueFamilyProps.data());
+            if (memcmp(props11.deviceUUID, deviceUUID.data(), VK_UUID_SIZE) == 0) {
+                physDev = dev;
+                break;
+            }
+        }
+        if (!physDev && !physDevs.empty()) {
+            Warn("Falling back to first physical device");
+            physDev = physDevs[0];
+        }
+        if (!physDev) {
+            throw std::runtime_error("Failed to find vulkan device");
+        }
+
+        auto queueFamilyProps = physDev.getQueueFamilyProperties();
 
         std::optional<u32> wantedQueueFamily;
 
-        for (u32 i = 0; i < queueFamilyCount; ++i) {
+        for (u32 i = 0; i < queueFamilyProps.size(); ++i) {
             auto& props = queueFamilyProps[i];
-            bool isGraphics = props.queueFlags & VK_QUEUE_GRAPHICS_BIT;
-            bool isCompute = props.queueFlags & VK_QUEUE_COMPUTE_BIT;
+            bool isGraphics = static_cast<bool>(props.queueFlags & vk::QueueFlagBits::eGraphics);
+            bool isCompute = static_cast<bool>(props.queueFlags & vk::QueueFlagBits::eCompute);
 
             if (isCompute && (!wantedQueueFamily.has_value() || !isGraphics)) {
                 wantedQueueFamily = i;
             }
         }
         meta.queueFamily = wantedQueueFamily.value();
-
-        u32 queueIndex = 0;
-
-        // TODO: Request the instance extension for this in monado
-        // TODO: Structure chains, vulkan raii?
+        meta.queueIndex = 0;
 
         std::vector<std::string_view> wantedExts = {
             VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME,
@@ -160,7 +174,6 @@ public:
             VK_KHR_SAMPLER_YCBCR_CONVERSION_EXTENSION_NAME,
             VK_EXT_PHYSICAL_DEVICE_DRM_EXTENSION_NAME,
             VK_EXT_CALIBRATED_TIMESTAMPS_EXTENSION_NAME,
-            VK_EXT_ROBUSTNESS_2_EXTENSION_NAME,
         };
 
         vk::PhysicalDevice vphysDev(physDev);
@@ -182,11 +195,11 @@ public:
             .pQueuePriorities = &queuePrio,
         };
 
-        meta.feats12 = vk::PhysicalDeviceVulkan12Features{
+        meta.feats12 = vk::PhysicalDeviceVulkan12Features {
             .timelineSemaphore = 1,
         };
 
-        meta.feats = vk::PhysicalDeviceFeatures2{
+        meta.feats = vk::PhysicalDeviceFeatures2 {
             .pNext = &meta.feats12,
             .features = {
                 .robustBufferAccess = true,
@@ -204,7 +217,24 @@ public:
 
         meta.devExtensions = acquiredExts;
 
-        queue = dev.getQueue(wantedQueueFamily.value(), queueIndex);
+        queue = dev.getQueue(wantedQueueFamily.value(), meta.queueIndex);
+
+        sharedInit();
+    }
+
+    void useQueue(std::function<void (vk::Queue&)> fn) {
+        if (queueMutex.has_value())
+            queueMutex->lock(&queueMutex->mutex);
+
+        fn(queue);
+
+        if (queueMutex.has_value())
+            queueMutex->unlock(&queueMutex->mutex);
+    }
+
+    void destroy() {
+        dev.destroy();
+        instance.destroy();
     }
 };
 

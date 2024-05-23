@@ -14,7 +14,6 @@ struct SharedMutex {
     struct MutexProxy mutex;
 };
 
-// TODO: Should we clean up this struct to only give things we actually need?
 struct AlvrVkInfo {
 	VkInstance instance;
 	uint32_t version;
