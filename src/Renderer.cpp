@@ -19,15 +19,15 @@ RenderPipeline::RenderPipeline(VkContext const& ctx, vk::DescriptorSetLayout& la
     vk::SpecializationInfo specInfo {
         .mapEntryCount = static_cast<u32>(pipelineCI.specs.size()),
         .pMapEntries = pipelineCI.specs.data(),
-        .dataSize = pipelineCI.entrySize,
-        .pData = pipelineCI.specData,
+        .dataSize = pipelineCI.specData.size(),
+        .pData = pipelineCI.specData.data(),
     };
 
     vk::PipelineShaderStageCreateInfo stageCI {
         .stage = vk::ShaderStageFlagBits::eCompute,
         .module = shader,
         .pName = "main",
-        .pSpecializationInfo = pipelineCI.specData ? &specInfo : nullptr,
+        .pSpecializationInfo = not pipelineCI.specs.empty() ? &specInfo : nullptr,
     };
     vk::ComputePipelineCreateInfo pipeCI {
         .stage = stageCI,
@@ -191,7 +191,7 @@ inline Image createImage(VkContext const& ctx, vk::ImageCreateInfo imageCI)
     return img;
 }
 
-Output createOutputImage(VkContext const& ctx, vk::Extent2D extend, vk::Format format, HandleType handleType)
+Output createOutputImage(VkContext const& ctx, vk::Extent2D extent, vk::Format format, HandleType handleType)
 {
     Image img;
     Output out;
@@ -200,8 +200,8 @@ Output createOutputImage(VkContext const& ctx, vk::Extent2D extend, vk::Format f
         .imageType = vk::ImageType::e2D,
         .format = format,
         .extent = {
-            .width = extend.width,
-            .height = extend.height,
+            .width = extent.width,
+            .height = extent.height,
             .depth = 1,
         },
         .mipLevels = 1,
@@ -384,6 +384,9 @@ Output createOutputImage(VkContext const& ctx, vk::Extent2D extend, vk::Format f
 
 namespace alvr::render {
 
+// TODO: This should only take fixed stuff, nothing else
+// but image import?
+// and output import?
 Renderer::Renderer(VkContext const& vkCtx, ImageRequirements& imgReqs, std::vector<PipelineCreateInfo> pipeCIs)
 {
     // We can use the extend from monado since that's directed by what we told monado
@@ -416,7 +419,8 @@ Renderer::Renderer(VkContext const& vkCtx, ImageRequirements& imgReqs, std::vect
             .mipLevels = 1,
             .arrayLayers = 1,
             .samples = vk::SampleCountFlagBits::e1,
-            .usage = static_cast<vk::ImageUsageFlagBits>(imgReqs.image_usage) | vk::ImageUsageFlagBits::eInputAttachment | vk::ImageUsageFlagBits::eSampled,
+            .usage = static_cast<vk::ImageUsageFlagBits>(imgReqs.image_usage)
+                | vk::ImageUsageFlagBits::eInputAttachment | vk::ImageUsageFlagBits::eSampled,
             .sharingMode = vk::SharingMode::eExclusive,
             .initialLayout = vk::ImageLayout::eUndefined,
         };
@@ -430,6 +434,9 @@ Renderer::Renderer(VkContext const& vkCtx, ImageRequirements& imgReqs, std::vect
     }
 
     // TODO: Make dependent on settings
+    // This actually depends on foveation not the encoder extent
+    // Which means that the quad shader is just... useless
+    // Since the encoder does the work already
     output = createOutputImage(vkCtx, { imgCI.extent.width, imgCI.extent.height }, imgCI.format, HandleType::DmaBuf);
 
     vk::QueryPoolCreateInfo poolCI {
@@ -579,9 +586,7 @@ void Renderer::render(VkContext& vkCtx, u32 index, u64 waitValue)
         .pCommandBuffers = &cmdBuf,
     };
 
-    vkCtx.useQueue([&](auto& queue) {
-        queue.submit(submitInfo, fence);
-    });
+    vkCtx.useQueue([&](auto& queue) { queue.submit(submitInfo, fence); });
     assert(vkCtx.dev.waitForFences(fence, true, UINT64_MAX) == vk::Result::eSuccess);
     vkCtx.dev.resetFences(fence);
 }

@@ -6,6 +6,7 @@ project(
   LANGUAGES CXX)
 
 add_compile_options(-fdiagnostics-color=always)
+add_compile_options(-std=c++20)
 
 set(PROJECT_SOURCE_DIR src/)
 
@@ -46,7 +47,6 @@ pkg_check_modules(LIBAV REQUIRED IMPORTED_TARGET
 
 add_library(libalvr STATIC IMPORTED)
 set_target_properties(libalvr PROPERTIES IMPORTED_LOCATION /home/duck/devel/alvr_intact/target/debug/libalvr_server.so)
-set_property(TARGET libalvr PROPERTY CXX_STANDARD 20)
 
 # Make sure you link your targets with this command. It can also link libraries and
 # even flags, so linking a target that does not exist will not give a configure-time error.

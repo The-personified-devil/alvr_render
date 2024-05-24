@@ -47,8 +47,7 @@ struct Output {
 struct PipelineCreateInfo {
     std::vector<u8> shaderData;
     std::vector<vk::SpecializationMapEntry> specs;
-    void const* specData;
-    usize entrySize;
+    std::vector<u8> specData;
 };
 
 namespace detail {
