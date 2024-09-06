@@ -6,7 +6,6 @@
 #include "Renderer.hpp"
 
 #include "alvr_server/IDRScheduler.h"
-#include "alvr_server/Settings.h"
 
 namespace alvr {
 
@@ -34,4 +33,4 @@ public:
 }
 
 // TODO: Where to put
-void ensureInit();
+vk::Extent2D ensureInit();

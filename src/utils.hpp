@@ -26,31 +26,40 @@ template <typename T> class Optional {
         char dummy;
     };
 
-    bool hasValue = false;
+    bool hasValue_ = false;
 
 public:
     Optional() { }
 
     template <typename... CTs> void emplace(CTs&&... cvals)
     {
-        if (hasValue)
+        if (hasValue_)
             value.~T();
 
         new (&value) T { std::forward<CTs>(cvals)... };
-        hasValue = true;
+        hasValue_ = true;
+    }
+
+    void erase() {
+        if (hasValue_)
+            value.~T();
+
+        hasValue_ = false;
     }
 
     T& get()
     {
-        if (hasValue)
+        if (hasValue_)
             return value;
 
         assert(false);
     }
 
+    bool hasValue() { return hasValue_; }
+
     ~Optional()
     {
-        if (hasValue)
+        if (hasValue_)
             value.~T();
     }
 };

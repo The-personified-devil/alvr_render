@@ -22,7 +22,6 @@ extern "C" {
 
 void handleEvents()
 {
-    std::cout << "handle_events init\n\n";
     auto ids = alvr_get_ids();
 
     while (true) {
@@ -34,8 +33,6 @@ void handleEvents()
             continue;
         }
 
-        std::cout << "\ngot event with tag " << (u32)event.tag << "\n";
-
         // TODO: Handle connection and disconnection
         if (event.tag == ALVR_EVENT_TRACKING_UPDATED) {
             auto ts = event.TRACKING_UPDATED.target_timestamp_ns;
@@ -43,16 +40,21 @@ void handleEvents()
             AlvrSpaceRelation devRel;
             if (alvr_get_device_relation(ids.head, &devRel)) {
                 CallbackManager::get().dispatch<ALVR_EVENT_TRACKING_UPDATED>(ts, devRel);
-                std::cout << "pushed tracking event\n";
             }
             alvr_advance_tracking_queue();
+        } else if (event.tag == ALVR_EVENT_VIEWS_CONFIG) {
+            CallbackManager::get().dispatch<ALVR_EVENT_VIEWS_CONFIG>(event.VIEWS_CONFIG);
+        } else {
+            std::cout << "event handler for tag " << (u32)event.tag << " not yet implemend\n";
         }
     }
 }
 
-void ensureInit()
+vk::Extent2D ensureInit()
 {
     struct InitManager : Singleton<InitManager> {
+        vk::Extent2D extent;
+
         InitManager()
         {
             // TODO: Make this less janky
@@ -66,7 +68,14 @@ void ensureInit()
 
             alvr_initialize_logging(sessionLog.c_str(), crashLog.c_str());
 
-            alvr_initialize();
+            auto targetCfg = alvr_initialize();
+
+            // NOTE: We don't care about the emulated size because there's no reason to have them differ
+            extent.width = targetCfg.stream_width;
+            extent.height = targetCfg.stream_height;
+
+            // TODO: Should we actually run this here? Or should we put it into the driver and not have the headache of
+            // caching dispatches?
             alvr_start_connection();
 
             {
@@ -83,7 +92,7 @@ void ensureInit()
         }
     };
 
-    InitManager::get();
+    return InitManager::get().extent;
 }
 
 template <typename... T>
@@ -285,7 +294,7 @@ void Encoder::initEncoding()
     }
     // Info("Using device path %s", devicePath.c_str());
 
-    av_log_set_level(AV_LOG_DEBUG);
+    // av_log_set_level(AV_LOG_DEBUG);
 
     // TODO: The EncodePipeline should store this on it's own
     auto& avHwCtx = *new alvr::HWContext(vkCtx);
