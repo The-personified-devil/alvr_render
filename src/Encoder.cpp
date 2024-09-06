@@ -1,10 +1,10 @@
 #include <chrono>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <source_location>
 #include <thread>
 #include <type_traits>
-#include <source_location>
-#include <filesystem>
 
 extern "C" {
 #include "alvr_binding.h"
@@ -56,8 +56,16 @@ void ensureInit()
         InitManager()
         {
             // TODO: Make this less janky
-            alvr_initialize_environment("~/.config/alvr/", "~/");
-            alvr_initialize_logging("~/alvr_session.log", "~/alvr_crash.log");
+            auto const homeDir = std::string(std::getenv("HOME"));
+            auto confDir = homeDir + "/.config/alvr/";
+
+            alvr_initialize_environment(confDir.c_str(), homeDir.c_str());
+
+            auto sessionLog = homeDir + "/alvr_session.log";
+            auto crashLog = homeDir + "/alvr_crash.log";
+
+            alvr_initialize_logging(sessionLog.c_str(), crashLog.c_str());
+
             alvr_initialize();
             alvr_start_connection();
 
