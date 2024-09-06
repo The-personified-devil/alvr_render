@@ -12,7 +12,7 @@ class Settings {
     virtual ~Settings();
 
   public:
-    void Load();
+    void Load(std::string json);
     static Settings &Instance() { return m_Instance; }
 
     bool IsLoaded() { return m_loaded; }

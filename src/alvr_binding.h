@@ -1,1 +1,1 @@
-/home/duck/devel/alvr_intact/alvr/server/alvr_binding.h
+../../alvr-monado/build/alvr_server_core/alvr_server_core.h

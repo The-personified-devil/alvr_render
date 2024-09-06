@@ -16,9 +16,12 @@
 #include <unistd.h>
 
 #define VULKAN_HPP_NO_CONSTRUCTORS
+extern "C" {
 #include <vulkan/vulkan.h>
-#include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_core.h>
+}
+
+#include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_enums.hpp>
 #include <vulkan/vulkan_handles.hpp>
 #include <vulkan/vulkan_structs.hpp>
@@ -70,7 +73,9 @@ private:
     vk::Queue queue;
 
     void sharedInit() {
-        auto devProps = physDev.getProperties2();
+        dispatch = { instance, vkGetInstanceProcAddr };
+
+        auto devProps = physDev.getProperties2(dispatch);
 
         if (devProps.properties.vendorID == 0x1002)
             meta.vendor = Vendor::Amd;
@@ -78,8 +83,6 @@ private:
             meta.vendor = Vendor::Intel;
         else if (devProps.properties.vendorID == 0x10de)
             meta.vendor = Vendor::Nvidia;
-
-        dispatch = { instance, vkGetInstanceProcAddr };
     }
 
 public:
@@ -93,11 +96,14 @@ public:
         meta.queueFamily = vkInfo.queueFamIdx;
         meta.queueIndex = vkInfo.queueIdx;
 
+        queueMutex = vkInfo.mutex;
+
         // TODO: Request the extensions from monado and put them into the meta info
 
         sharedInit();
     }
 
+    // TODO: When will we merge steamvr and monado graphics code?
     VkContext(std::vector<u8> deviceUUID)
     {
         std::vector<std::string_view> wantedInstExts = {
@@ -132,7 +138,7 @@ public:
             vk::PhysicalDeviceProperties2 props {
                 .pNext = &props11,
             };
-            dev.getProperties2(&props);
+            dev.getProperties2(&props, dispatch);
 
             if (memcmp(props11.deviceUUID, deviceUUID.data(), VK_UUID_SIZE) == 0) {
                 physDev = dev;

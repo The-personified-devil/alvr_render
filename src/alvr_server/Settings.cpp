@@ -19,21 +19,12 @@ Settings::Settings() : m_loaded(false) {}
 
 Settings::~Settings() {}
 
-void Settings::Load() {
-
-	const char* g_sessionPath = "/home/duck/.config/alvr/session.json";
-
+void Settings::Load(std::string json) {
     try {
-		std::cout << "Session path: " << g_sessionPath << std::endl;
-        auto sessionFile = std::ifstream(g_sessionPath);
-
-        auto json = std::string(std::istreambuf_iterator<char>(sessionFile),
-                                std::istreambuf_iterator<char>());
-
         picojson::value v;
         std::string err = picojson::parse(v, json);
         if (!err.empty()) {
-            Error("Error on parsing session config (%s): %hs\n", g_sessionPath, err.c_str());
+            Error("Error on parsing session config: %hs\n", err.c_str());
             return;
         }
 
@@ -123,6 +114,6 @@ void Settings::Load() {
         Info("Refresh Rate: %d\n", m_refreshRate);
         m_loaded = true;
     } catch (std::exception &e) {
-        Error("Exception on parsing session config (%s): %hs\n", g_sessionPath, e.what());
+        Error("Exception on parsing session config: %hs\n", e.what());
     }
 }

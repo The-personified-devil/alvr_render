@@ -59,11 +59,3 @@ struct ImageRequirements
 	// Preferred present_mode, can be ignored by the target.
 	VkPresentModeKHR present_mode;
 };
-
-struct Proxy {};
-
-// TODO: This is a hack; move the monado code out to an entirely different file then we won't need this :)
-// but I can implement this hack quicker so I can test quicker :)
-struct Proxy* rendr_create_encoder(struct AlvrVkInfo* info);
-void rendr_init_images(struct Proxy *enc, struct ImageRequirements* imgReqs, struct AlvrVkExport* expt);
-void rendr_present(struct Proxy*, uint64_t sem_tl_val, uint32_t img_idx);

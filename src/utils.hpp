@@ -1,8 +1,8 @@
 #pragma once
 
 #include <cassert>
-#include <cstdint>
 #include <cstddef>
+#include <cstdint>
 #include <utility>
 
 using u8 = uint8_t;
@@ -20,8 +20,7 @@ using f32 = float;
 using f64 = double;
 
 // TODO: Finish this
-template <typename T>
-class Optional {
+template <typename T> class Optional {
     union {
         T value;
         char dummy;
@@ -32,9 +31,11 @@ class Optional {
 public:
     Optional() { }
 
-    template <typename... CTs>
-    void emplace(CTs&&... cvals)
+    template <typename... CTs> void emplace(CTs&&... cvals)
     {
+        if (hasValue)
+            value.~T();
+
         new (&value) T { std::forward<CTs>(cvals)... };
         hasValue = true;
     }
@@ -51,5 +52,20 @@ public:
     {
         if (hasValue)
             value.~T();
+    }
+};
+
+template <typename T> class Singleton {
+public:
+    Singleton() = default;
+    Singleton(const Singleton&) = delete;
+    Singleton(Singleton&&) = delete;
+    decltype(auto) operator=(const Singleton&) = delete;
+    decltype(auto) operator=(Singleton&&) = delete;
+
+    static T& get()
+    {
+        static T val;
+        return val;
     }
 };
