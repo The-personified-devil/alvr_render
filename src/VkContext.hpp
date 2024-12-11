@@ -35,10 +35,6 @@ extern "C" {
 #include <libavutil/log.h>
 }
 
-// TODO: Clean up
-void ParseFrameNals(
-    int codec, unsigned char* buf, int len, unsigned long long targetTimestampNs, bool isIdr);
-
 namespace alvr {
 
 enum class Vendor {

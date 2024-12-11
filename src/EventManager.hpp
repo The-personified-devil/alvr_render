@@ -9,6 +9,11 @@ extern "C" {
 #include "alvr_binding.h"
 }
 
+struct ViewsInfo {
+    AlvrViewParams left;
+    AlvrViewParams right;
+};
+
 // TODO: Make thread safe
 class CallbackManager : public Singleton<CallbackManager> {
     template <typename T> using Fns = std::vector<std::function<T>>;
@@ -16,11 +21,11 @@ class CallbackManager : public Singleton<CallbackManager> {
     // TODO: This is bad for performance, would be fine if rwlock
     std::mutex mutex;
 
-    Fns<void(u64, AlvrSpaceRelation)> trackingUpdated;
-    Fns<void(ViewsConfig_Body)> viewsConfig;
+    Fns<void(u64, AlvrDeviceMotion)> trackingUpdated;
+    Fns<void(ViewsInfo)> viewsConfig;
 
     // TODO: This is... interesting
-    Optional<ViewsConfig_Body> lastViewsConfig;
+    Optional<ViewsInfo> lastViewsConfig;
 
 public:
     // NOTE: Callbacks cause a lock, so beware
@@ -30,12 +35,12 @@ public:
 
         if constexpr (eventType == ALVR_EVENT_TRACKING_UPDATED) {
             trackingUpdated.push_back(std::move(cb));
-        } else if constexpr (eventType == ALVR_EVENT_VIEWS_CONFIG) {
+        } else if constexpr (eventType == ALVR_EVENT_VIEWS_PARAMS) {
             viewsConfig.push_back(std::move(cb));
 
             // NOTE: This pushes to all consumers
             if (lastViewsConfig.hasValue()) {
-                dispatch<ALVR_EVENT_VIEWS_CONFIG>(lastViewsConfig.get());
+                dispatch<ALVR_EVENT_VIEWS_PARAMS>(lastViewsConfig.get());
             }
         } else {
             assert(false);
@@ -49,7 +54,7 @@ public:
         auto& fns = [&]() -> auto& {
             if constexpr (eventType == ALVR_EVENT_TRACKING_UPDATED) {
                 return trackingUpdated;
-            } else if constexpr (eventType == ALVR_EVENT_VIEWS_CONFIG) {
+            } else if constexpr (eventType == ALVR_EVENT_VIEWS_PARAMS) {
                 lastViewsConfig.emplace(std::get<0>(std::tuple { params... }));
 
                 return viewsConfig;

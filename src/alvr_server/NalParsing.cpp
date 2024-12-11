@@ -122,7 +122,7 @@ void processHevcNals(unsigned char *&buf, int &len) {
 }
 
 void ParseFrameNals(
-    int codec, unsigned char *buf, int len, unsigned long long targetTimestampNs, bool isIdr) {
+    int codec, AlvrViewParams const* viewParams,  unsigned char *buf, int len, unsigned long long targetTimestampNs, bool isIdr) {
     static bool av1GotFrame = false;
 
     if ((unsigned)len < sizeof(NAL_PREFIX_4B)) {
@@ -138,5 +138,5 @@ void ParseFrameNals(
         alvr_set_video_config_nals(ALVR_CODEC_TYPE_AV1, 0, 0);
     }
 
-    alvr_send_video_nal(targetTimestampNs, buf, len, isIdr);
+    alvr_send_video_nal(targetTimestampNs, viewParams, isIdr, buf, len);
 }

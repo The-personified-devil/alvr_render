@@ -35,15 +35,20 @@ void handleEvents()
 
         // TODO: Handle connection and disconnection
         if (event.tag == ALVR_EVENT_TRACKING_UPDATED) {
-            auto ts = event.TRACKING_UPDATED.target_timestamp_ns;
+            auto ts = event.TRACKING_UPDATED.sample_timestamp_ns;
 
-            AlvrSpaceRelation devRel;
-            if (alvr_get_device_relation(ids.head, &devRel)) {
-                CallbackManager::get().dispatch<ALVR_EVENT_TRACKING_UPDATED>(ts, devRel);
+            AlvrDeviceMotion motion;
+            if (alvr_get_device_motion(ids.head, ts, &motion)) {
+                CallbackManager::get().dispatch<ALVR_EVENT_TRACKING_UPDATED>(ts, motion);
             }
-            alvr_advance_tracking_queue();
-        } else if (event.tag == ALVR_EVENT_VIEWS_CONFIG) {
-            CallbackManager::get().dispatch<ALVR_EVENT_VIEWS_CONFIG>(event.VIEWS_CONFIG);
+        } else if (event.tag == ALVR_EVENT_VIEWS_PARAMS) {
+            auto params = event.views_params;
+            ViewsInfo info {
+                .left = params[0],
+                .right = params[1],
+            };
+
+            CallbackManager::get().dispatch<ALVR_EVENT_VIEWS_PARAMS>(info);
         } else {
             std::cout << "event handler for tag " << (u32)event.tag << " not yet implemend\n";
         }
@@ -125,7 +130,7 @@ auto makeSpecs(T... args)
     return info;
 }
 
-// TODO: Find a solution to actually ship the shader along with alvr
+// TODO: #embed will have to do...
 inline std::vector<u8> loadShaderFile(std::string shaderName)
 {
     auto srcFile = std::source_location::current().file_name();
@@ -223,6 +228,11 @@ inline auto makeFoveation(Settings const& settings, vk::Extent2D extent)
     return std::tuple(info, outSize);
 }
 
+// TODO: Clean up
+void ParseFrameNals(
+    int codec, AlvrViewParams const* viewParams,  unsigned char *buf, int len, unsigned long long targetTimestampNs, bool isIdr);
+
+
 namespace alvr {
 
 AlvrVkExport Encoder::createImages(ImageRequirements& imageReqs)
@@ -310,18 +320,26 @@ void Encoder::initEncoding()
     idrScheduler.OnStreamStart();
 }
 
-void Encoder::present(u32 idx, u64 timelineVal)
+void Encoder::present(u32 idx, u64 timelineVal, ViewsInfo const& views)
 {
     renderer.get().render(vkCtx, idx, timelineVal);
 
-    encoder->PushFrame(0, /* idrScheduler.CheckIDRInsertion() */ true);
+    // TODO: not sure, but might actually work
+    static u64 counter = 0;
+
+    encoder->PushFrame(counter++, /* idrScheduler.CheckIDRInsertion() */ true);
 
     alvr::FramePacket framePacket;
     if (!encoder->GetEncoded(framePacket)) {
         assert(false);
     }
 
-    ParseFrameNals(encoder->GetCodec(), framePacket.data, framePacket.size, framePacket.pts, framePacket.isIDR);
+    // TODO: This constant conversion sucks
+    AlvrViewParams viewParams[2];
+    viewParams[0] = views.left;
+    viewParams[1] = views.right;
+
+    ParseFrameNals(encoder->GetCodec(), viewParams, framePacket.data, framePacket.size, framePacket.pts, framePacket.isIDR);
 }
 
 }

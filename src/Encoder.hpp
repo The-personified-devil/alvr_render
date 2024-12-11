@@ -3,13 +3,13 @@
 #include <memory>
 
 #include "EncodePipeline.h"
+#include "EventManager.hpp"
 #include "Renderer.hpp"
 
 #include "alvr_server/IDRScheduler.h"
 
 namespace alvr {
 
-// TODO: Move to source file
 class Encoder {
     VkContext vkCtx;
     Optional<render::Renderer> renderer;
@@ -22,12 +22,11 @@ public:
     {
     }
 
-    // TODO: Code path for steamvr
     AlvrVkExport createImages(ImageRequirements& imageReqs);
 
     void initEncoding();
 
-    void present(u32 idx, u64 timelineVal);
+    void present(u32 idx, u64 timelineVal, ViewsInfo const& views);
 };
 
 }

@@ -229,9 +229,10 @@ alvr::EncodePipelineVAAPI::EncodePipelineVAAPI(alvr::HWContext &vk_ctx, std::str
   encoder_ctx->gop_size = INT_MAX;
   encoder_ctx->color_range = Settings::Instance().m_useFullRangeEncoding ? AVCOL_RANGE_JPEG : AVCOL_RANGE_MPEG;
 
+  // TODO: Make dynamic
   auto params = FfiDynamicEncoderParams {};
   params.updated = true;
-  params.bitrate_bps = 30'000'000;
+  params.bitrate_bps = 500'000'000;
   params.framerate = settings.m_refreshRate;
   SetParams(params);
 
